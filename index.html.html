@@ -1,185 +1,80 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>🎫 Tómbola Sincronizda</title>
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; user-select: none; }
-        body { background: #f0f4f8; display: flex; justify-content: center; padding: 15px; margin: 0; }
-        .container { max-width: 950px; width: 100%; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #1e293b; margin: 0 0 5px 0; font-size: 1.8rem; }
-        .subtitulo { text-align: center; color: #64748b; margin-top: 0; font-size: 0.9rem; }
-        .estadisticas {
-            display: flex; justify-content: space-between; background: #e2e8f0;
-            padding: 12px 20px; border-radius: 12px; margin-bottom: 15px;
-            font-weight: bold; font-size: 1rem; flex-wrap: wrap;
-        }
-        .vendidos span { color: #16a34a; }
-        .disponibles span { color: #64748b; }
-        .conectado { color: #22c55e; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; }
-        .controles {
-            display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;
-        }
-        .controles input, .controles button {
-            padding: 8px 12px; border: none; border-radius: 8px; font-weight: bold;
-            cursor: pointer; font-size: 0.9rem;
-        }
-        .controles input { flex: 1; border: 1px solid #cbd5e1; background: white; min-width: 100px; }
-        .btn-reset { background: #ef4444; color: white; }
-        .btn-filter { background: #94a3b8; color: white; }
-        .btn-filter.activo { background: #1d4ed8; box-shadow: inset 0 -3px 0 #1e3a8a; }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
-            gap: 8px;
-        }
-        .boleto {
-            aspect-ratio: 1 / 1;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            border-radius: 12px; font-weight: bold; font-size: 1.1rem;
-            cursor: pointer; transition: all 0.15s;
-            border: 2px solid transparent;
-            background: #e2e8f0; color: #334155;
-            position: relative;
-        }
-        .boleto.vendido {
-            background: #22c55e; color: white; border-color: #15803d;
-            box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.3);
-        }
-        .boleto.vendido::after {
-            content: "✓"; position: absolute; top: 2px; right: 5px; font-size: 0.6rem; opacity: 0.8;
-        }
-        .boleto.disponible:hover { background: #cbd5e1; transform: scale(1.05); }
-        .boleto.vendido:hover { background: #dc2626; border-color: #991b1b; }
-        .boleto.vendido:hover::after { content: "✕"; }
-        .footer { margin-top: 15px; text-align: center; font-size: 0.75rem; color: #94a3b8; }
-        .cargando { text-align: center; color: #64748b; padding: 20px; }
-        @media (max-width: 500px) {
-            .grid { grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); gap: 5px; }
-            .boleto { font-size: 0.9rem; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rifa 300 Boletos</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 5px; }
+    .boleto {
+      padding: 15px 0; border-radius: 8px; border: none;
+      font-weight: bold; font-size: 16px; cursor: pointer;
+      transition: 0.2s; color: white; background: #27ae60;
+    }
+    .boleto.vendido { background: #e74c3c; cursor: not-allowed; }
+    .boleto:disabled { opacity: 0.7; }
+    h2 { margin: 10px 0; }
+  </style>
 </head>
 <body>
-<div class="container">
-    <h1>🎫 Tómbola</h1>
-    <p class="subtitulo">📱 Actualización en vivo entre todos los dispositivos</p>
-    
-    <div class="estadisticas">
-        <div class="vendidos">✅ Vendidos: <span id="contVendidos">0</span></div>
-        <div class="disponibles">⬜ Disponibles: <span id="contDisponibles">0</span></div>
-        <div class="conectado">🟢 <span id="estadoConexion">Conectado</span></div>
-    </div>
+  <h2>Rifa - Boletos Disponibles</h2>
+  <p>Haz clic en un número verde para venderlo. Se bloquea al instante para todos.</p>
+  <div id="botones" class="grid"></div>
 
-    <div class="controles">
-        <input type="text" id="buscador" placeholder="🔍 Buscar número..." oninput="renderizar()">
-        <button class="btn-filter activo" id="filtroTodos" onclick="setFiltro('todos')">Todos</button>
-        <button class="btn-filter" onclick="setFiltro('vendidos')">Vendidos</button>
-        <button class="btn-filter" onclick="setFiltro('disponibles')">Disponibles</button>
-        <button class="btn-reset" onclick="reiniciarTodo()">🗑️ Reiniciar</button>
-    </div>
-
-    <div id="gridContainer">
-        <div class="cargando">⏳ Sincronizando con la nube...</div>
-    </div>
-    <div class="footer">💡 Toca un boleto GRIS para venderlo. Toca un VERDE para anular la venta.</div>
-</div>
-
-<script>
-    // ============================================================
-    // TU CONFIGURACIÓN DE FIREBASE (YA INCLUIDA)
-    // ============================================================
+  <!-- Scripts de Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script>
+    // ⚙️ REEMPLAZA ESTO CON TUS PROPIAS CREDENCIALES DE FIREBASE
     const firebaseConfig = {
-        apiKey: "AIzaSyB4y-kUH6uUTPM2tCYX0IeAR1YwPi87hlE",
-        authDomain: "tombola-5a75d.firebaseapp.com",
-        databaseURL: "https://tombola-5a75d-default-rtdb.firebaseio.com",
-        projectId: "tombola-5a75d",
-        storageBucket: "tombola-5a75d.firebasestorage.app",
-        messagingSenderId: "589655699540",
-        appId: "1:589655699540:web:4ee9f705b05dbef6807dc1",
-        measurementId: "G-D1JMVZH6QW"
+      // AQUI PEGAS TU CONFIGURACIÓN
     };
-    // ============================================================
 
     firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const ticketsRef = database.ref('tickets');
+    const db = firebase.database();
 
-    const TOTAL_BOLETOS = 100;
-    let filtroActual = 'todos';
-    let estadoBoletos = [];
-    let cargadoInicial = false;
+    const total = 300;
+    const grid = document.getElementById('botones');
 
-    ticketsRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (!data) {
-            estadoBoletos = new Array(TOTAL_BOLETOS).fill(false);
-            ticketsRef.set(estadoBoletos);
-        } else {
-            if (data.length < TOTAL_BOLETOS) {
-                const nuevos = new Array(TOTAL_BOLETOS).fill(false);
-                for (let i = 0; i < data.length; i++) nuevos[i] = data[i];
-                estadoBoletos = nuevos;
-                ticketsRef.set(estadoBoletos);
-            } else {
-                estadoBoletos = data.slice(0, TOTAL_BOLETOS);
-            }
+    // Inicializar los boletos si no existen en la base de datos
+    const initRef = db.ref('boletos/1');
+    initRef.once('value', (snap) => {
+      if (!snap.exists()) {
+        for (let i = 1; i <= total; i++) {
+          db.ref('boletos/' + i).set({
+            numero: i,
+            estado: 'disponible'
+          });
         }
-        cargadoInicial = true;
-        document.getElementById('estadoConexion').textContent = 'Actualizado';
-        renderizar();
+      }
     });
 
-    ticketsRef.on('error', () => {
-        document.getElementById('estadoConexion').textContent = '⚠️ Sin conexión';
+    // Escuchar cambios en toda la lista de boletos
+    db.ref('boletos').on('value', (snapshot) => {
+      grid.innerHTML = '';
+      const data = snapshot.val() || {};
+      for (let i = 1; i <= total; i++) {
+        const boleto = data[i] || { estado: 'disponible' };
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.classList.add('boleto');
+        btn.disabled = (boleto.estado === 'vendido');
+        if (boleto.estado === 'vendido') {
+          btn.classList.add('vendido');
+        }
+
+        // Acción al hacer clic: vender inmediatamente
+        btn.addEventListener('click', () => {
+          if (boleto.estado !== 'vendido') {
+            // Actualiza el boleto a vendido de forma atómica
+            db.ref('boletos/' + i).update({ estado: 'vendido' });
+          }
+        });
+
+        grid.appendChild(btn);
+      }
     });
-
-    function toggleVenta(index) {
-        if (!cargadoInicial) return;
-        ticketsRef.child(index.toString()).set(!estadoBoletos[index]);
-    }
-
-    function setFiltro(tipo) {
-        filtroActual = tipo;
-        document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('activo'));
-        if (tipo === 'todos') document.getElementById('filtroTodos').classList.add('activo');
-        else if (tipo === 'vendidos') document.querySelectorAll('.btn-filter')[1].classList.add('activo');
-        else if (tipo === 'disponibles') document.querySelectorAll('.btn-filter')[2].classList.add('activo');
-        renderizar();
-    }
-
-    function renderizar() {
-        const grid = document.getElementById('gridContainer');
-        const buscador = document.getElementById('buscador').value.toLowerCase();
-        if (!cargadoInicial) {
-            grid.innerHTML = '<div class="cargando">⏳ Sincronizando...</div>';
-            return;
-        }
-        let vendidos = 0, disponibles = 0, html = '<div class="grid">';
-        for (let i = 0; i < estadoBoletos.length; i++) {
-            const num = i + 1, vendido = estadoBoletos[i];
-            if (buscador && !num.toString().includes(buscador)) continue;
-            if (filtroActual === 'vendidos' && !vendido) continue;
-            if (filtroActual === 'disponibles' && vendido) continue;
-            html += `<div class="boleto ${vendido ? 'vendido' : 'disponible'}" onclick="toggleVenta(${i})">${num}</div>`;
-            vendido ? vendidos++ : disponibles++;
-        }
-        html += '</div>';
-        grid.innerHTML = html;
-        document.getElementById('contVendidos').textContent = vendidos;
-        document.getElementById('contDisponibles').textContent = disponibles;
-    }
-
-    function reiniciarTodo() {
-        if (!confirm('¿Reiniciar TODAS las ventas?')) return;
-        ticketsRef.set(new Array(TOTAL_BOLETOS).fill(false));
-    }
-
-    document.addEventListener('DOMContentLoaded', () => setFiltro('todos'));
-</script>
+  </script>
 </body>
 </html>
